@@ -39,13 +39,13 @@ After that the app will be running on localhost:5000 and it can be accessed from
 
 * [GET] /create_corpus | This endpoint doesn't need input arguments; it will lead to process the necessary input data to obtain the files already available in the OneDrive folder aforementioned [NO NEED TO USED IT]
 * [GET] /results | This endpoint receives a query and other parameters to perform the IR task and retreive the most suitable sonnet. By default the word embedding technique in this case will always be BERT. The arguments in the body of the request should be:
+
 |parameter|values|description|
 |---|---|---|
 |query_text||Input query sent|
 |composition_type|"joint" or "sum"||
 |metric|"cosine" or "icm"||
 |log|"True" or "False"|To indicate if the user wants to see the scoring obtained for the last top of retreived sonnets.|
-
 
 ## 3. Additional considerations
 * The machine used to run the program shoudl have at least 4 gb of RAM and 2 cores
