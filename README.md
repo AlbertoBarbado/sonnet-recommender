@@ -37,7 +37,7 @@ $ python app.py
 
 After that the app will be running on localhost:5000 and it can be accessed from two endpoints:
 
-* [GET] /create_corpus | This endpoint doesn't need input arguments; it will lead to process the necessary input data to obtain the files already available in the OneDrive folder aforementioned [NO NEED TO USED IT]
+* [POST] /create_corpus | This endpoint doesn't need input arguments; it will lead to process the necessary input data to obtain the files already available in the OneDrive folder aforementioned [NO NEED TO USED IT]
 * [GET] /results | This endpoint receives a query and other parameters to perform the IR task and retreive the most suitable sonnet. By default the word embedding technique in this case will always be BERT. The arguments in the body of the request should be:
 
 |parameter|values|description|
@@ -46,6 +46,18 @@ After that the app will be running on localhost:5000 and it can be accessed from
 |composition_type|"joint" or "sum"||
 |metric|"cosine" or "icm"||
 |log|"True" or "False"|To indicate if the user wants to see the scoring obtained for the last top of retreived sonnets.|
+
+To modify the DISCO ontology, you can access the following endpoint:
+* [POST] /create_ontology
+
+But to do that YOU MUST PREVIOUSLY DO the following task:
+- Download all the 'per-sonnet' folders from DISCO (TEI XMLs) and copy all of their content's within a unique per-sonnet folder within the /poems folder. Due to this, the folders to download will be:
+	- https://github.com/pruizf/disco/tree/master/tei/15th-17th/per-sonnet
+	- https://github.com/pruizf/disco/tree/master/tei/18th/per-sonnet
+	- https://github.com/pruizf/disco/tree/master/tei/19th/per-sonnet
+- The zip folder per-sonnet available right now within /poems already contains the original files from DISCO with the affective values added.
+	
+
 
 ## 3. Additional considerations
 * The machine used to run the program shoudl have at least 4 gb of RAM and 2 cores

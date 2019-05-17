@@ -7,7 +7,9 @@
 
 from flask import Flask, render_template, redirect, url_for, request
 from program.query_web import embedding_query_stanza
-from program.data_features import enrich_affective_df, docs2dict, obtain_bert_embeddings, bert_embedding_composition_iter, word2vec_embedding_composition
+from program.data_features import (enrich_affective_df, docs2dict, obtain_bert_embeddings, 
+                                   bert_embedding_composition_iter, word2vec_embedding_composition,
+                                   feature_adding_affective)
             
 app = Flask(__name__)  
     
@@ -47,7 +49,13 @@ def create_corpus():
         word2vec_embedding_composition(composition_type="joint")
         # Obtain composition embeddings [W2V, SUM]
         word2vec_embedding_composition(composition_type="sum")
+        
 
+@app.route('/create_ontology',methods = ['POST', 'GET'])
+def create_ontology():
+    if request.method == 'POST':
+        # Modify XML TEI's adding affective values within that structure
+        feature_adding_affective()
   
 
 if __name__ == "__main__":
