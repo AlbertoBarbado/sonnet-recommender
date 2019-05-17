@@ -22,13 +22,10 @@ from program.config import (PATH_POEMS, PATH, WORD_COL, NAME1, NAME2,
                     DOCS_NAME_DCT, BERT_BATCH_SIZE, OTHER_SONNETS, SONNETS_ADDITIONAL, 
                     TYPE_EMBEDDING, LOAD_SPLITS, COMPOSITION_TYPE)
 from program.tools import get_files, file_presistance
-
-from sklearn.metrics.pairwise import cosine_similarity
 from itertools import islice
 from numpy.linalg import norm
-
 from bert_embedding import BertEmbedding
-
+from sklearn.metrics.pairwise import cosine_similarity
 
 
 def word_grams(words, lim_min=2, lim_max=5):
@@ -522,7 +519,7 @@ def docs2dict():
     
     # Store in disk
     file_presistance(PATH + "/"+ DOCS_NAME_DCT + ".p", "generic", dct_sonnets, "save")
-    file_presistance(PATH + "/"+ DOCS_NAME_DCT, "json", dct_sonnets, "save")
+    file_presistance(PATH + "/"+ DOCS_NAME_DCT + ".json", "json", dct_sonnets, "save")
     
     return dct_sonnets
             
@@ -770,6 +767,81 @@ def affective_features(words, df_affective, df_v_a, df_aoa):
     return word_features_tot
 
 
+def feature_adding_affective():
+    
+    # Load sonnets
+    dct_sonnets = file_presistance(PATH + "/"+ DOCS_NAME_DCT + '.json', "json", None, "load")
+    
+    # Load sonnet files
+    list_sonnets = get_files("{0}/per-sonnet".format(PATH_POEMS), "xml")
+    
+    # List of documents
+    try:
+        list_docs_original = file_presistance(os.path.join(os.getcwd(), PATH, 'list_files.p'), 'generic', None, 'load')
+    except:
+        print("Nothing used yet, loading all files")
+        list_docs_original = []
+    
+    # Iterate
+    num_poems = 0
+    for key, sonnet in dct_sonnets.items(): 
+        
+        print("{0}".format("*"*40))
+        print("Iteration {0}/{1}".format(num_poems, len(dct_sonnets)))
+        print("{0}".format("*"*40))
+        
+        # Only consider those poems that are in DISCO
+        if num_poems >= len(list_sonnets):
+            break
+        
+#        sonnet = dct_sonnets['0']
+#        title_aux = sonnet['title'].replace(" ", "_")
+#        file_path = [x for x in list_sonnets if title_aux in x][0]
+        file_path = list_sonnets[num_poems]
+        
+        # Load file
+        doc = file_presistance(file_path, "xml", None, "load")
+        
+        # Check params
+        try:
+            author = doc['TEI']['teiHeader']['fileDesc']['titleStmt']['author']['#text']
+            year = doc['TEI']['teiHeader']['fileDesc']['sourceDesc']['bibl']['hi']['#text']
+            title = doc['TEI']['teiHeader']['fileDesc']['titleStmt']['title']['#text']
+            id_doc = doc['TEI']['teiHeader']['fileDesc']['titleStmt']['@about']
+            print("title", title)
+            print("author", author)
+            print("date",year)
+        except:
+            print("Some meta fields not present in this document")
+            
+        # Add values
+        # Sonnet
+        doc["TEI"]["text"]["body"]["param"] = {"@name": "AffectiveFeatures", "attRef":[]}
+        word_features_tot = sonnet['affective_features']
+        
+        for key, value in word_features_tot.items():
+            doc["TEI"]["text"]["body"]["param"]["attRef"].append({"@name":key, "content":str(value)})
+        
+        # Stanza
+        n = len(doc["TEI"]["text"]["body"]['lg'])
+        for k in range(n):
+            word_features_tot = sonnet['dct_stanzas'][str(k)]['affective_features']
+            doc["TEI"]["text"]["body"]['lg'][k]["param"] = {"@name": "AffectiveFeatures", "attRef":[]}
+            
+            for key, value in word_features_tot.items():
+                doc["TEI"]["text"]["body"]['lg'][k]["param"]["attRef"].append({"@name":key, "content":str(value)})
+        
+        
+        ### Save new XML
+        file_presistance(file_path, "xml", doc, "save")
+    
+        # Append doc name to general 
+        list_docs_original.append(file_path)
+        file_presistance(PATH + '/list_files.p', "generic", list_docs_original, "save")
+        
+        num_poems += 1
+
+
 
 def feature_extractor_affective():
     """
@@ -966,6 +1038,7 @@ def obtain_embedding_matrix(file_path, vocab_lem, whole=False):
 
 
 
+
 def _chunks(data, SIZE=10000):
     """
     This function does a yield of the original dict (casted as an iteritem) in different
@@ -977,16 +1050,15 @@ def _chunks(data, SIZE=10000):
     for i in range(0, len(data), SIZE):
         yield {k:data[k] for k in islice(it, SIZE)} 
         
-    
 
-def obtain_bert_embeddings(type_embedding, generate_new=False):
+def obtain_bert_embeddings(file_path, type_embedding, generate_new=False):
     """
     # TODO
     Function to obtain the embeddings for each sonnet according to BERT. Each sonnet will
     have their own embedding for each of the words involved in it.
     
     """   
-    
+        
     # List of documents (original)
     dct_sonnets_all = file_presistance(PATH + "/"+ DOCS_NAME_DCT + ".p", "generic", None, "load")
     
@@ -1046,37 +1118,100 @@ def obtain_bert_embeddings(type_embedding, generate_new=False):
                 continue
             
             if type_embedding=="whole_text":
-                # Embedding of whole text
+                # Embeddings without stopwords
+                # List of raw words
+                words = sonnet['words']
+        
+                text = ''
+                for w in words:
+                    text += w
+                    text += ' '
+                    
+                result = bert_embedding(words)  
+                dct_sonnets[key]["bert_embedding_whole_text"] = result
+                
+                
+                # Embedding without stopwords [Stanza]
                 for key_stanza,stanza in sonnet['dct_stanzas'].items():
-                    result = bert_embedding(stanza['words']) 
-                    dct_sonnets[key]['dct_stanzas'][key_stanza]["whole_text"] = result
                     
+                    # List of raw words
+                    words = stanza['words']
+                      
+                    text = ''
+                    for w in words:
+                        text += w
+                        text += ' '
                     
-                result = bert_embedding(sonnet['words'])                                    
-                dct_sonnets[key]["whole_text"] = result
-
+                    result = bert_embedding(words)                    
+                    dct_sonnets[key]['dct_stanzas'][key_stanza]["bert_embedding_whole_text"] = result
+                
+                
+            elif type_embedding=="words_lem_complete":
+                # Embedding of text lemmatized with stopwords and uppercase
+                raise NotImplementedError()
             
             elif type_embedding=="words_lem_nonstopwords":
+                # Embedding without stopwords and lemmatized [Whole Text]
+                text = ''
+                for w in sonnet['words_lem']:
+                    text += w
+                    text += ' '
+
+                result = bert_embedding(sonnet['words_lem'])                                    
+                dct_sonnets[key]["bert_embedding_lem_nonstopwords"] = result
+                
+                
                 # Embedding without stopwords and lemmatized [Stanza]
                 for key_stanza,stanza in sonnet['dct_stanzas'].items():
                     text = ''
                     for w in stanza['words_lem']:
                         text += w
                         text += ' '
-                        
+                                        
                     # Using BERT embedding library
+                    
                     result = bert_embedding(stanza['words_lem'])                    
-                    dct_sonnets[key]['dct_stanzas'][key_stanza]["bert_embedding_lem_nonstopwords"] = result 
+                    dct_sonnets[key]['dct_stanzas'][key_stanza]["bert_embedding_lem_nonstopwords"] = result
+
+
+            elif type_embedding=="whole_nonstop":
+                # Embeddings without stopwords
+                # List of raw words
+                words = sonnet['words']
+                # Upper case to lowercase
+                words = [w.lower() for w in words]
+                # Remove stopwords
+                words = [w for w in words if w not in stopwords.words('spanish')]
                 
-            
-            elif type_embedding=="words_lem":  
-                # Embedding without stopwords and lemmatized [Whole Text]
                 text = ''
-                for w in sonnet['words_lem']:
+                for w in words:
                     text += w
                     text += ' '
-                result = bert_embedding(sonnet['words_lem'])                                    
-                dct_sonnets[key]["bert_embedding_lem_nonstopwords"] = result
+                    
+                result = bert_embedding(words)  
+                dct_sonnets[key]["bert_embedding_nonstopwords"] = result
+                dct_sonnets[key]["nonstopwords"] = words
+                
+                
+                # Embedding without stopwords [Stanza]
+                for key_stanza,stanza in sonnet['dct_stanzas'].items():
+                    
+                    # List of raw words
+                    words = stanza['words']
+                    # Upper case to lowercase
+                    words = [w.lower() for w in words]
+                    # Remove stopwords
+                    words = [w for w in words if w not in stopwords.words('spanish')]
+                    
+                    text = ''
+                    for w in words:
+                        text += w
+                        text += ' '
+                    
+                    result = bert_embedding(words)                    
+                    dct_sonnets[key]['dct_stanzas'][key_stanza]["bert_embedding_nonstopwords"] = result
+                    dct_sonnets[key]['dct_stanzas'][key_stanza]["nonstopwords"] = words
+                
             
             # Append doc name to general 
             list_docs_used.append(key)
@@ -1109,6 +1244,8 @@ def joint_function(v1,v2):
     v_joint = (numer/denom)*np.sqrt((v1_norm)**2 + (v2_norm)**2 - v1_norm*v2_norm*cosine_similarity(pd.DataFrame(v1).T, pd.DataFrame(v2).T)[0][0])
     
     return v_joint
+    
+  
 
 
 def embed_bert_text(word_emb, key, composition_type):
@@ -1119,7 +1256,6 @@ def embed_bert_text(word_emb, key, composition_type):
     
     for word in word_emb:
         # Obtain embeddings for that word
-#        df_embeddings = pd.DataFrame(word['layers'][0]['values']).T
         df_embeddings = pd.DataFrame(word[0]).T
         # Append embeddings of each word
         if df_embeddings_all.empty:
@@ -1191,7 +1327,6 @@ def bert_embedding_composition_iter(type_embedding, composition_type):
                 #########
                 
                 if type_embedding=="whole_text":
-#                    word_emb = sonnet['bert_embedding_text'][0]['features']
                     # word_preprocessing
                     dct_index = {}
                     index_aux = 0
@@ -1214,7 +1349,6 @@ def bert_embedding_composition_iter(type_embedding, composition_type):
                     
                     
                 elif type_embedding=="words_lem_nonstopwords":
-#                    word_emb = sonnet['bert_embedding_lem_nonstopwords'][0]['features']
                     # word_preprocessing(text)
                     sonnet['bert_embedding_lem_nonstopwords'] = []
                     
@@ -1242,7 +1376,6 @@ def bert_embedding_composition_iter(type_embedding, composition_type):
                 for key_stanza, stanza in sonnet['dct_stanzas'].items():
 
                     if type_embedding=="whole_text":
-#                        word_emb = stanza['bert_embedding_text'][0]['features']
                         word_emb = [x[1] for x in stanza['whole_text'] if x[0][0] in ref_words]
                     elif type_embedding=="words_lem_nonstopwords":
                         
@@ -1289,11 +1422,9 @@ def bert_embedding_composition_iter(type_embedding, composition_type):
         file_presistance(PATH + '/' + 'dct_composition_embeddings_stanza_{0}_{1}.p'.format(composition_type, type_embedding), "generic", dct_composition_embeddings, "save")
     
 
-        
-        # Save in csv
-        df_embeddings_all_sonnets.to_csv(PATH + '/' + 'dct_composition_embeddings_{0}_{1}.csv'.format(composition_type, type_embedding))
-        df_embeddings_all_stanzas.to_csv(PATH + '/' + 'dct_composition_embeddings_stanza_{0}_{1}.csv'.format(composition_type, type_embedding))
-        
+
+
+    
     
 def obtain_fasttext_embedding(file_path, type_embedding, generate_new=False):
     """
@@ -1396,6 +1527,7 @@ def obtain_fasttext_embedding(file_path, type_embedding, generate_new=False):
     # File persistance
     file_presistance(PATH + "/df_fasttext_matrix.p", "generic", df_word_embedding, "save")
     file_presistance(PATH + "/df_fasttext_vocab.p", "generic", list_vocab, "save")
+
     
     
 def fasttext_embedding_composition(composition_type):
@@ -1477,7 +1609,7 @@ def word2vec_embedding_composition(composition_type):
     """
     
     # Load sonnets embeddings
-    dct_sonnets_all = file_presistance(os.path.join(PATH, '{0}.p'.format(DOCS_NAME_DCT)), "generic", None, "load")
+    dct_sonnets_all = file_presistance(os.path.join(PATH, 'dct_sonnets.p'), "generic", None, "load")
     
     # Load word2vec dct
     def loadWord2VecModel(pathFile):
@@ -1616,7 +1748,4 @@ def word2vec_embedding_composition(composition_type):
     # Save
     file_presistance(PATH + '/' + 'dct_composition_embeddings_stanza_{0}_{1}.p'.format(composition_type, "word2vec"), "generic", dct_composition_embeddings, "save")
 
-    # Save in csv
-    df_embeddings_all_sonnets.to_csv(PATH + '/' + 'dct_composition_embeddings_{0}_{1}.csv'.format(composition_type, "word2vec"))
-    df_embeddings_all_stanzas.to_csv(PATH + '/' + 'dct_composition_embeddings_stanza_{0}_{1}.csv'.format(composition_type, "word2vec"))
-      
+
