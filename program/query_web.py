@@ -21,6 +21,8 @@ from program.data_features import word_preprocessing, joint_function
 from sklearn.metrics.pairwise import cosine_similarity
 from numpy.linalg import norm
 from bert_embedding import BertEmbedding
+from nltk.corpus import stopwords
+
 
 ### LOAD CSV
 DF_COMPOSITION_EMBEDDING_STANZA = pd.read_csv(PATH + '/' + 'df_composition_embeddings_stanza_{0}_{1}.p'.format("joint", TYPE_EMBEDDING))
@@ -145,6 +147,7 @@ def embedding_query_stanza(query_text, composition_type, metric, use_prefilter=T
         df_features = pd.DataFrame([x[1][0] for x in result])
     
     elif TYPE_EMBEDDING == "whole_text":
+        # Tokenize words
         list_words = re.findall(r'\w+', query_text,flags = re.UNICODE)
         list_words = [w.lower() for w in list_words]
         s = ''
@@ -157,6 +160,16 @@ def embedding_query_stanza(query_text, composition_type, metric, use_prefilter=T
         # Using BERT embedding library
         bert_embedding = BertEmbedding(model='bert_12_768_12', dataset_name='wiki_multilingual')
         result = bert_embedding(list_words)
+        # Remove stopwords
+        list_words = [w for w in list_words if w not in stopwords.words('spanish')]
+        # Eliminate embeddings for stopwords
+        results_aux = []
+        for register in result:
+            print(register[0][0])
+            if register[0][0] not in stopwords.words('spanish'):
+                results_aux.append(register)
+        result = results_aux
+        
         df_features = pd.DataFrame([x[1][0] for x in result])
     
     elif TYPE_EMBEDDING == "fasttext":

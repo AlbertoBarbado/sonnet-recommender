@@ -1180,15 +1180,25 @@ def obtain_bert_embeddings(file_path, type_embedding, generate_new=False):
                 words = sonnet['words']
                 # Upper case to lowercase
                 words = [w.lower() for w in words]
-                # Remove stopwords
-                words = [w for w in words if w not in stopwords.words('spanish')]
-                
+            
                 text = ''
                 for w in words:
                     text += w
                     text += ' '
-                    
+                
+                # Obtaing embeddings with whole text
                 result = bert_embedding(words)  
+                
+                # Remove stopwords
+                words = [w for w in words if w not in stopwords.words('spanish')]
+                
+                # Eliminate embeddings for stopwords
+                results_aux = []
+                for register in result:
+                    if register[0][0] not in stopwords.words('spanish'):
+                        results_aux.append(register)
+                
+                result = results_aux
                 dct_sonnets[key]["bert_embedding_nonstopwords"] = result
                 dct_sonnets[key]["nonstopwords"] = words
                 
@@ -1200,15 +1210,23 @@ def obtain_bert_embeddings(file_path, type_embedding, generate_new=False):
                     words = stanza['words']
                     # Upper case to lowercase
                     words = [w.lower() for w in words]
-                    # Remove stopwords
-                    words = [w for w in words if w not in stopwords.words('spanish')]
                     
                     text = ''
                     for w in words:
                         text += w
                         text += ' '
+                        
+                    result = bert_embedding(words)  
+                    # Remove stopwords
+                    words = [w for w in words if w not in stopwords.words('spanish')]
                     
-                    result = bert_embedding(words)                    
+                    # Eliminate embeddings for stopwords
+                    results_aux = []
+                    for register in result:
+                        if register[0][0] not in stopwords.words('spanish'):
+                            results_aux.append(register)
+                    
+                    result = results_aux
                     dct_sonnets[key]['dct_stanzas'][key_stanza]["bert_embedding_nonstopwords"] = result
                     dct_sonnets[key]['dct_stanzas'][key_stanza]["nonstopwords"] = words
                 
@@ -1600,6 +1618,8 @@ def fasttext_embedding_composition(composition_type):
     dct_composition_embeddings[composition_type] = df_embeddings_all_sonnets
     # Save
     file_presistance(PATH + '/' + 'dct_composition_embeddings_{0}_{1}.p'.format(composition_type, "fasttext"), "generic", dct_composition_embeddings, "save")
+
+
 
 
 def word2vec_embedding_composition(composition_type):
