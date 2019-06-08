@@ -61,3 +61,6 @@ But to do that YOU MUST PREVIOUSLY DO the following task:
 ## 3. Additional considerations
 * The machine used to run the program shoudl have at least 4 gb of RAM and 2 cores
 * As it's said, it takes a while for the program to start (around 2-5 min) 
+
+## 4. Release
+* This is the first release of the tool: 0.1
