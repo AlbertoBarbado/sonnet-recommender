@@ -272,36 +272,92 @@ def enrich_affective_df():
     """
     # TODO
     """
+    def change_words_lem(x):
+        """
+        Return the lemmatized word
+        """
+        k = x['word']
+        k = [token.lemma_ if (token.tag_.split('=')[-1] != 'Sing') else w for w in [k] for token in nlp(w)]
+        k = k[0]
+        return k
+    
+    def change_words_stem(x):
+        """
+        Return the stemmed word
+        """
+        k = stemmer.stem(x['word'])
+        return k
+    
     ##### Add as feature the number of words used
     ### Emotions
+    # Path
     name = PATH + '/' +  NAME1 + '.csv' 
-    
     # Load
-    df_affective = pd.read_csv(name, sep=';', encoding='utf-8', header=0).rename(columns={'Spanish_Word':WORD_COL}).drop(["English_Translation", "N"], axis=1).set_index(WORD_COL)
-    # Complete with stems and lemmas
-    df_affective = complement_df_ngrams(df_affective)
+    df_affective = pd.read_csv(name, sep=';', encoding='utf-8', header=0).rename(columns={'Spanish_Word':WORD_COL}).drop(["English_Translation", "N"], axis=1)
+    df_aux = df_affective.copy()
+    # Add lem words
+    df_aux['word'] = df_aux.apply(change_words_lem, axis=1)
+    df_affective = (df_affective.append(df_aux)
+                .drop_duplicates(subset=['word'], keep='first') # eliminate words if they already existed in the original df
+                .sort_values(by=['word'], ascending=True)
+                .reset_index(drop=True))
+    # Add stem words
+    df_aux['word'] = df_aux.apply(change_words_stem, axis=1)
+    df_affective = (df_affective.append(df_aux)
+                .drop_duplicates(subset=['word'], keep='last') # if there are duplicates, keep second value since plurals in ESP are with masc, and masc appears after fem
+                .sort_values(by=['word'], ascending=True)
+                .reset_index(drop=True))
+    # Set index
+    df_affective = df_affective.set_index(WORD_COL)
     # Save to csv
     df_affective.to_csv(PATH + '/' +  NAME1 + '_enriched.csv')
     
+    
     ### Valence/Arousal metrics
+    # Path
     name = PATH + '/' +  NAME4 + '.csv' 
+    # Load
     df_v_a = pd.read_csv(name, sep=';', encoding='utf-8', header=0).rename(columns={'Word':WORD_COL}).drop(["ValenceRaters", "ArousalRaters"], axis=1).fillna(0)
     # Remove '*'
     df_v_a[WORD_COL] = [w.strip('*') for w in list(df_v_a[WORD_COL])]
-    # Complement with stems and lemmas 
+    df_aux = df_v_a.copy()
+    # Add lem words
+    df_aux['word'] = df_aux.apply(change_words_lem, axis=1)
+    df_v_a = (df_v_a.append(df_aux)
+                .drop_duplicates(subset=['word'], keep='first') # eliminate words if they already existed in the original df
+                .sort_values(by=['word'], ascending=True)
+                .reset_index(drop=True))
+    # Add stem words
+    df_aux['word'] = df_aux.apply(change_words_stem, axis=1)
+    df_v_a = (df_v_a.append(df_aux)
+                .drop_duplicates(subset=['word'], keep='last') # if there are duplicates, keep second value since plurals in ESP are with masc, and masc appears after fem
+                .sort_values(by=['word'], ascending=True)
+                .reset_index(drop=True))
+    # Set index
     df_v_a = df_v_a.set_index(WORD_COL)
-    df_v_a = complement_df_ngrams(df_v_a)
-    
     # Save to csv
     df_v_a.to_csv(PATH + '/' +  NAME4 + '_enriched.csv')
     
+    
     ### AoA (Age of Acquisition, Oral Freq, Written Freq)
+    # Path
     name = PATH + '/' +  NAME3 + '.csv' 
+    # Load
     df_aoa = pd.read_csv(name, sep=';', encoding='utf-8', header=0).rename(columns={'word':WORD_COL})
     df_aoa = df_aoa[[WORD_COL, "averageAoA", "SD", "Min", "Max", "OralFreq_Log", " WrittenFreq_LEXESP_Log"]].rename(columns={'SD':'sdAOA', 'Min':'MinAoA', 'Max':'MaxAoA', ' WrittenFreq_LEXESP_Log': 'WrittenFreq_Log'})
-    # Complement with ngrams    
-    df_aoa = df_aoa.set_index(WORD_COL)
-    df_aoa = complement_df_ngrams(df_aoa)
+    df_aux = df_aoa.copy()
+    # Add lem words
+    df_aux['word'] = df_aux.apply(change_words_lem, axis=1)
+    df_aoa = (df_aoa.append(df_aux)
+                .drop_duplicates(subset=['word'], keep='first') # eliminate words if they already existed in the original df
+                .sort_values(by=['word'], ascending=True)
+                .reset_index(drop=True))
+    # Add stem words
+    df_aux['word'] = df_aux.apply(change_words_stem, axis=1)
+    df_aoa = (df_aoa.append(df_aux)
+                .drop_duplicates(subset=['word'], keep='last') # if there are duplicates, keep second value since plurals in ESP are with masc, and masc appears after fem
+                .sort_values(by=['word'], ascending=True)
+                .reset_index(drop=True))
     # Save to csv
     df_aoa.to_csv(PATH + '/' +  NAME3 + '_enriched.csv')
 
